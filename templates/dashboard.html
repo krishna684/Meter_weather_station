@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ATMOS 41 Gen2 Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .card {
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+      position: relative;
+      height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container my-4">
+    <h2 class="mb-4 text-center">ATMOS 41 Gen2 - Last 24 Hours</h2>
+    <div id="sensor-cards" class="row g-4">
+      <!-- Sensor cards will be injected here -->
+    </div>
+  </div>
+
+  <script>
+    async function fetchData() {
+      const res = await fetch('/api/live');
+      const data = await res.json();
+      renderCards(data);
+    }
+
+    function renderCards(data) {
+      const container = document.getElementById('sensor-cards');
+      container.innerHTML = '';
+
+      for (const [sensor, readings] of Object.entries(data)) {
+        const canvasId = sensor.replace(/\s+/g, '_');
+        const card = document.createElement('div');
+        card.className = 'col-md-6';
+
+        card.innerHTML = `
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h5 class="card-title mb-0">${sensor}</h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="${canvasId}"></canvas>
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: readings.map(r => new Date(r.time).toLocaleString()),
+            datasets: [{
+              label: sensor,
+              data: readings.map(r => r.value),
+              borderColor: 'rgb(75, 192, 192)',
+              tension: 0.3,
+              fill: false
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                ticks: { autoSkip: true, maxTicksLimit: 10 },
+                title: { display: true, text: 'Time' }
+              },
+              y: {
+                beginAtZero: false,
+                title: { display: true, text: 'Value' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    fetchData();
+  </script>
+</body>
+</html>
