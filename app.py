@@ -1,29 +1,25 @@
-import os
-import requests
 from flask import Flask, jsonify, render_template
+import os, requests, time
+from threading import Thread
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
-# Load environment variables from .env
 load_dotenv()
 app = Flask(__name__)
 
-# Load credentials and endpoint
 API_TOKEN = os.getenv("ZENTRA_API_TOKEN")
 DEVICE_SN = os.getenv("ZENTRA_DEVICE_SN")
 BASE_URL = "https://zentracloud.com/api/v3/get_readings/"
 
-@app.route('/')
-def dashboard():
-    return render_template("dashboard.html")  # Ensure dashboard.html exists in templates/
+# In-memory cache
+cached_data = {}
 
-@app.route('/api/live')
-def get_atmos41_data():
+def fetch_sensor_data():
+    global cached_data
     headers = {
         "Authorization": API_TOKEN,
         "Accept": "application/json"
     }
-
     params = {
         "device_sn": DEVICE_SN,
         "start_date": (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M"),
@@ -39,21 +35,49 @@ def get_atmos41_data():
 
         data = raw_data.get("data", {})
         sensors = {}
-
         for label, series_list in data.items():
             readings = []
             for series in series_list:
-                for reading in series.get("readings", []):
+                for r in series.get("readings", []):
                     readings.append({
-                        "time": reading.get("datetime"),
-                        "value": reading.get("value")
+                        "time": r.get("datetime"),
+                        "value": r.get("value")
                     })
             sensors[label] = readings
 
-        return jsonify(sensors)
+        cached_data = sensors
+        print(f"✅ Fetched sensor data at {datetime.now().strftime('%H:%M:%S')}")
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print(f"❌ Failed to fetch data: {e}")
+
+def background_fetch_loop():
+    while True:
+        fetch_sensor_data()
+        time.sleep(600)  # every 10 minutes
+
+@app.route('/')
+def home():
+    # Show latest reading per sensor
+    if not cached_data:
+        fetch_data()
+    latest = {}
+    for sensor, values in cached_data.items():
+        if values:
+            latest[sensor] = values[-1]  # last = latest by time
+    return render_template("home.html", latest=latest)
+
+@app.route('/charts')
+def charts():
+    if not cached_data:
+        fetch_data()
+    return render_template("dashboard.html")
+
+@app.route('/api/live')
+def serve_data():
+    return jsonify(cached_data)
 
 if __name__ == "__main__":
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":  # Only run once on reload
+        Thread(target=background_fetch_loop, daemon=True).start()
     app.run(debug=True)
