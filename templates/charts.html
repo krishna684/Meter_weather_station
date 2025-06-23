@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ATMOS 41 Gen2 - Charts</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .navbar {
+      margin-bottom: 2rem;
+    }
+    .chart-wrapper {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">ATMOS 41</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/charts">Charts</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h3 class="text-center mb-4">Sensor Charts</h3>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="sensorSelect" class="form-label">Select Sensor:</label>
+        <select class="form-select" id="sensorSelect">
+          <option disabled selected value="">-- Choose a sensor --</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label for="timeRange" class="form-label">Time Range:</label>
+        <select class="form-select" id="timeRange">
+          <option value="6">Last 6 Hours</option>
+          <option value="12">Last 12 Hours</option>
+          <option value="24" selected>Last 24 Hours</option>
+          <option value="48">Last 48 Hours</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card chart-wrapper">
+      <div class="card-body">
+        <canvas id="sensorChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allData = {};
+
+    async function fetchData() {
+      const res = await fetch('/api/live');
+      const data = await res.json();
+      allData = data;
+      populateSensorDropdown(data);
+    }
+
+    function populateSensorDropdown(data) {
+      const dropdown = document.getElementById("sensorSelect");
+      Object.keys(data).forEach(sensor => {
+        const option = document.createElement("option");
+        option.value = sensor;
+        option.textContent = sensor;
+        dropdown.appendChild(option);
+      });
+    }
+
+    function filterData(sensor, hours) {
+      const now = new Date();
+      return (allData[sensor] || []).filter(entry => {
+        const time = new Date(entry.time);
+        return now - time <= hours * 3600 * 1000;
+      });
+    }
+
+    let chart;
+
+    function renderChart(sensor, hours) {
+      const readings = filterData(sensor, hours);
+      const ctx = document.getElementById('sensorChart').getContext('2d');
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: readings.map(r => new Date(r.time).toLocaleString()),
+          datasets: [{
+            label: sensor,
+            data: readings.map(r => r.value),
+            borderColor: 'rgba(75, 192, 192, 1)',
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            x: {
+              ticks: { autoSkip: true, maxTicksLimit: 15 },
+              title: { display: true, text: 'Time' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'Value' }
+            }
+          }
+        }
+      });
+    }
+
+    document.getElementById("sensorSelect").addEventListener("change", () => {
+      const sensor = document.getElementById("sensorSelect").value;
+      const hours = parseInt(document.getElementById("timeRange").value);
+      renderChart(sensor, hours);
+    });
+
+    document.getElementById("timeRange").addEventListener("change", () => {
+      const sensor = document.getElementById("sensorSelect").value;
+      const hours = parseInt(document.getElementById("timeRange").value);
+      if (sensor) renderChart(sensor, hours);
+    });
+
+    fetchData();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

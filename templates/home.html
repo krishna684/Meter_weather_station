@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ATMOS 41 Gen2 - Latest Sensor Data</title>
+  <meta http-equiv="refresh" content="300" /> <!-- Auto-refresh every 5 minutes -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .navbar-brand {
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">ATMOS 41 Dashboard</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/charts">Charts</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Table of Latest Sensor Readings -->
+  <div class="container">
+    <h3 class="mb-4 text-center">Latest Sensor Readings (Auto-refresh every 5 mins)</h3>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped text-center">
+        <thead class="table-dark">
+          <tr>
+            <th>Sensor</th>
+            <th>Timestamp</th>
+            <th>Latest Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set units = {
+            'Air Temperature': '°C',
+            'Relative Humidity': '%',
+            'Barometric Pressure': 'kPa',
+            'Solar Radiation': 'W/m²',
+            'Rain Total': 'mm',
+            'Wind Speed': 'm/s',
+            'Wind Direction': '°',
+            'Wind Gust': 'm/s',
+            'Lightning Strikes': 'count',
+            'Lightning Distance': 'km',
+            'Dew Point': '°C',
+            'Vapor Pressure': 'kPa',
+            'Temperature Max': '°C',
+            'Temperature Min': '°C'
+          } %}
+          {% for sensor, readings in sensors.items() %}
+            {% if readings %}
+              <tr>
+                <td>{{ sensor }}</td>
+                <td>{{ readings[0].time }}</td>
+                <td>{{ readings[0].value }} {{ units[sensor] if sensor in units else '' }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</body>
+</html>
