@@ -17,80 +17,140 @@
     }
     .chart-container {
       position: relative;
-      height: 250px;
+      height: 300px;
     }
   </style>
 </head>
 <body>
   <div class="container my-4">
-    <h2 class="mb-4 text-center">ATMOS 41 Gen2 - Last 24 Hours</h2>
-    <div id="sensor-cards" class="row g-4">
-      <!-- Sensor cards will be injected here -->
+    <h2 class="mb-4 text-center">ATMOS 41 Gen2 - Last <span id="time-label">24</span> Hours</h2>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="sensorSelect" class="form-label">Select Sensor:</label>
+        <select id="sensorSelect" class="form-select"></select>
+      </div>
+      <div class="col-md-6">
+        <label for="timeRange" class="form-label">Select Time Range:</label>
+        <select id="timeRange" class="form-select">
+          <option value="6">Last 6 Hours</option>
+          <option value="12">Last 12 Hours</option>
+          <option value="24" selected>Last 24 Hours</option>
+          <option value="48">Last 48 Hours</option>
+        </select>
+      </div>
     </div>
+
+    <div id="sensor-card" class="row g-4">
+      <!-- Sensor card inserted here -->
+    </div>
+
+    <div class="text-center text-muted">Updated every 10 minutes</div>
   </div>
 
   <script>
+    let sensorData = {};
+    let currentSensor = null;
+
     async function fetchData() {
       const res = await fetch('/api/live');
       const data = await res.json();
-      renderCards(data);
+      sensorData = data;
+
+      const sortedSensors = Object.keys(data).sort();
+      const sensorSelect = document.getElementById('sensorSelect');
+
+      sensorSelect.innerHTML = '';
+      sortedSensors.forEach(sensor => {
+        const option = document.createElement('option');
+        option.value = sensor;
+        option.textContent = sensor;
+        sensorSelect.appendChild(option);
+      });
+
+      currentSensor = sortedSensors[0];
+      renderCard(currentSensor);
     }
 
-    function renderCards(data) {
-      const container = document.getElementById('sensor-cards');
+    function renderCard(sensor) {
+      const readings = sensorData[sensor];
+      const container = document.getElementById('sensor-card');
+      const timeRange = document.getElementById('timeRange').value;
+
+      document.getElementById('time-label').textContent = timeRange;
       container.innerHTML = '';
 
-      for (const [sensor, readings] of Object.entries(data)) {
-        const canvasId = sensor.replace(/\s+/g, '_');
-        const card = document.createElement('div');
-        card.className = 'col-md-6';
-
-        card.innerHTML = `
-          <div class="card">
-            <div class="card-header bg-primary text-white">
-              <h5 class="card-title mb-0">${sensor}</h5>
+      const canvasId = sensor.replace(/\s+/g, '_');
+      const card = document.createElement('div');
+      card.className = 'col-12';
+      card.innerHTML = `
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">${sensor}</h5>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="${canvasId}"></canvas>
             </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="${canvasId}"></canvas>
-              </div>
+            <div class="text-end mt-2">
+              <button class="btn btn-sm btn-outline-secondary" onclick="downloadChart('${canvasId}')">Download Chart</button>
             </div>
           </div>
-        `;
+        </div>
+      `;
+      container.appendChild(card);
 
-        container.appendChild(card);
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      const limitedReadings = readings.slice(-parseInt(timeRange));
 
-        const ctx = document.getElementById(canvasId).getContext('2d');
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: readings.map(r => new Date(r.time).toLocaleString()),
-            datasets: [{
-              label: sensor,
-              data: readings.map(r => r.value),
-              borderColor: 'rgb(75, 192, 192)',
-              tension: 0.3,
-              fill: false
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              x: {
-                ticks: { autoSkip: true, maxTicksLimit: 10 },
-                title: { display: true, text: 'Time' }
-              },
-              y: {
-                beginAtZero: false,
-                title: { display: true, text: 'Value' }
-              }
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: limitedReadings.map(r => new Date(r.time).toLocaleString()),
+          datasets: [{
+            label: sensor,
+            data: limitedReadings.map(r => r.value),
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              ticks: { autoSkip: true, maxTicksLimit: 12 },
+              title: { display: true, text: 'Time' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'Value' }
             }
           }
-        });
-      }
+        }
+      });
     }
 
+    function downloadChart(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      const url = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.download = `${canvasId}.png`;
+      link.href = url;
+      link.click();
+    }
+
+    document.getElementById('sensorSelect').addEventListener('change', function() {
+      currentSensor = this.value;
+      renderCard(currentSensor);
+    });
+
+    document.getElementById('timeRange').addEventListener('change', function() {
+      renderCard(currentSensor);
+    });
+
     fetchData();
+    setInterval(fetchData, 10 * 60 * 1000); // Refresh every 10 minutes
   </script>
 </body>
 </html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ATMOS 41 Gen2 Dashboard - Home</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">ATMOS Dashboard</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link active" href="/">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="/charts">Charts</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="container mt-4">
+    <h2 class="mb-4">Latest Sensor Readings</h2>
+    <table class="table table-striped">
+      <thead><tr><th>Sensor</th><th>Latest Value</th><th>Time</th></tr></thead>
+      <tbody id="sensor-table"></tbody>
+    </table>
+  </div>
+
+  <script>
+    fetch('/api/live').then(res => res.json()).then(data => {
+      const tbody = document.getElementById('sensor-table');
+      for (const [sensor, readings] of Object.entries(data)) {
+        if (readings.length > 0) {
+          const { value, time } = readings[0];
+          const row = `<tr><td>${sensor}</td><td>${value}</td><td>${new Date(time).toLocaleString()}</td></tr>`;
+          tbody.innerHTML += row;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
