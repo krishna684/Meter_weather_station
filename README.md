@@ -14,12 +14,6 @@ and presents it through a user-friendly interface with tables and dynamic charts
 
 ---
 
-## 📸 Screenshot
-
-*(Add a screenshot of your application's dashboard here)*
-
----
-
 ## ✨ Features
 
 * **Live Data Table** – View the most recent sensor readings at a glance. Auto-refreshes every 5 minutes.
